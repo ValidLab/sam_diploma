@@ -1,6 +1,8 @@
 from typing import List
 
+import requests
 from PIL import Image
+from fastapi import Cookie
 from ikomia.dataprocess.workflow import Workflow
 from ikomia.utils import ik
 from ikomia.utils.displayIO import display
@@ -36,6 +38,10 @@ def reformate_photo(path: str, input_box: List[str], prompt: str, anti_prompt: s
     display(sd_inpaint.get_output(0).get_image())
     return sd_inpaint.get_output(0).get_image()  # add a save mechanism
 
+
+def check_auth(fastapiusersauth: str = Cookie(None)):
+    response = requests.get("http://localhost:8001/api/user/get_user_info", cookies={"fastapiusersauth": fastapiusersauth})
+    return response.status_code, response.json()
 
 # destination = 'C:/Users/Oksana/PycharmProjects/sam_diploma/cat.jpg'
 #

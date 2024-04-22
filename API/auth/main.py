@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from API.auth.auth import auth_backend
 from API.auth.schemas import UserRead, UserCreate
@@ -11,6 +12,16 @@ app = FastAPI(
     summary="",
     version="1.0",
     root_path="/api"
+)
+
+origins = [
+    "http://localhost:8000"
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_methods=["GET"]
 )
 
 app.include_router(

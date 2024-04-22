@@ -25,4 +25,5 @@ def get_nickname(user: User = Depends(current_user)):
 
 @router.get("/get_user_info")
 def get_info(user: User = Depends(current_user)):
-    return {'id':user.id, 'email': user.email, 'nickname': user.nickname}
+
+    return {'id': user.id, 'email': user.email, 'nickname': user.nickname}

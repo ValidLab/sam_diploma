@@ -1,8 +1,6 @@
-from datetime import datetime
 from typing import Union
-
+from datetime import datetime
 from pydantic import BaseModel
-# from sqlalchemy.orm import DeclarativeBase
 
 
 class FileCreate(BaseModel):

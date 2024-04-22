@@ -1,11 +1,9 @@
 from fastapi_users_db_sqlalchemy import SQLAlchemyBaseUserTable
-from sqlalchemy import Table, Column, Integer, String, ForeignKey, TIMESTAMP, Boolean, MetaData
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from fastapi_users.db import SQLAlchemyBaseUserTableUUID, SQLAlchemyUserDatabase
+from sqlalchemy import Integer, String, Boolean
+from sqlalchemy.orm import Mapped, mapped_column, declarative_base, DeclarativeMeta
 
 
-class Base(DeclarativeBase):
-    pass
+Base: DeclarativeMeta = declarative_base()
 
 
 class User(SQLAlchemyBaseUserTable[int], Base):
