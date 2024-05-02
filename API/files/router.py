@@ -1,13 +1,13 @@
 import os
 import shutil
-
-import requests
-from PIL import Image
-from typing import List
 from datetime import datetime
 
+import requests
 from fastapi import APIRouter, UploadFile, Depends, Cookie
 from fastapi.responses import FileResponse, JSONResponse
+
+from PIL import Image
+from typing import List
 
 from sqlalchemy import select, desc, insert, func, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -29,19 +29,33 @@ router = APIRouter(
 # def get_template(request: Request):
 #     return templates.TemplateResponse("work.html", {"request": request})
 
-@router.get("/aaaaa")
-async def get_aaa(fastapiusersauth: str = Cookie(None)):
-    response = requests.get("http://localhost:8001/api/user/get_user_info", cookies={"fastapiusersauth": fastapiusersauth})
-    return JSONResponse(status_code=response.status_code, content=response.json())
+# @router.get("/aaaaa")
+# async def get_aaa(fastapiusersauth: str = Cookie(None)):
+#     response = requests.get("http://localhost:8001/api/user/get_user_info", cookies={"fastapiusersauth": fastapiusersauth})
+#     return JSONResponse(status_code=response.status_code, content=response.json())
+#
+#
+# @router.get("/dabliat")
+# async def read_items(fastapiusersauth: str = Cookie(None)):
+#     return {"fastapiusersauth": fastapiusersauth}
 
 
-@router.get("/dabliat")
-async def read_items(fastapiusersauth: str = Cookie(None)):
-    return {"fastapiusersauth": fastapiusersauth}
+@router.post("/improve_file/post")
+async def post_file(filename: str, public: bool, session: AsyncSession = Depends(get_async_session),
+                    fastapiusersauth: str = Cookie(None)):
+    status_code, data = check_auth(fastapiusersauth)
+    if status_code == 401:
+        return JSONResponse(status_code=status_code, content=data)
+
+    created_at = datetime.now()
+    img_info = {'path': filename, 'author': data['nickname'], 'public': public, 'created_at': created_at, 'likes': 0}
+    await session.execute(img_info)
+    await session.commit()
 
 
 @router.post("/improve_file")
-async def improve_file(uploaded_file: UploadFile, prompt: str, anti_prompt: str, coordinates: List[str], session: AsyncSession = Depends(get_async_session), fastapiusersauth: str = Cookie(None)):
+async def improve_file(uploaded_file: UploadFile, prompt: str, anti_prompt: str, coordinates: List[str],
+                       fastapiusersauth: str = Cookie(None)):
     status_code, data = check_auth(fastapiusersauth)
     if status_code == 401:
         return JSONResponse(status_code=status_code, content=data)
@@ -60,18 +74,26 @@ async def improve_file(uploaded_file: UploadFile, prompt: str, anti_prompt: str,
     img = Image.fromarray(img)
     final_destination = ''.join(destination.split('.')[:-1]) + '_updated.jpg'
     img.save(final_destination)
-    created_at = datetime.now()
-    # row_count = file.query(func.count(file.id)).scalar()
-    # query = file.select().with_only_columns([file.c.id]).count()
-    # row_count = session.execute(query).scalar()
-    img_info = {'path': final_destination, 'author': 'me', 'public': False, 'created_at': created_at, 'likes': 0}
-    await session.execute(img_info)
-    await session.commit()
+
     return FileResponse(final_destination)
 
 
+@router.get("/images/favourite/")
+async def add_favourite(session: AsyncSession = Depends(get_async_session), fastapiusersauth: str = Cookie(None)):
+    status_code, data = check_auth(fastapiusersauth)
+    if status_code == 401:
+        return JSONResponse(status_code=status_code, content=data)
+
+    query = select(file).select_from(favourites).where(favourites.c.user_id == data['id']).join(file)
+
+    result = await session.execute(query)
+
+    return result.mappings().all()
+
+
 @router.get("/images")
-async def get_all(filter_by: str = 'cr_time acs', author: str = '', skip: int = 0, limit: int = 10, session: AsyncSession = Depends(get_async_session), fastapiusersauth: str = Cookie(None)):
+async def get_all(filter_by: str = 'cr_time acs', author: str = '', skip: int = 0, limit: int = 10,
+                  session: AsyncSession = Depends(get_async_session), fastapiusersauth: str = Cookie(None)):
     status_code, data = check_auth(fastapiusersauth)
     if status_code == 401:
         return JSONResponse(status_code=status_code, content=data)
@@ -96,7 +118,8 @@ async def get_all(filter_by: str = 'cr_time acs', author: str = '', skip: int = 
 
 
 @router.get("/image/{image_id}")
-async def get_image(image_id: int, session: AsyncSession = Depends(get_async_session), fastapiusersauth: str = Cookie(None)):
+async def get_image(image_id: int, session: AsyncSession = Depends(get_async_session),
+                    fastapiusersauth: str = Cookie(None)):
     status_code, data = check_auth(fastapiusersauth)
     if status_code == 401:
         return JSONResponse(status_code=status_code, content=data)
@@ -104,12 +127,12 @@ async def get_image(image_id: int, session: AsyncSession = Depends(get_async_ses
     query = select(file).where(file.c.id == image_id)
 
     result = await session.execute(query)
-
-    return result.mappings().all()
+    return JSONResponse(status_code=200, content=result.mappings().one())
 
 
 @router.patch("/image/add_like/{image_id}")
-async def add_like_image(image_id: int, session: AsyncSession = Depends(get_async_session), fastapiusersauth: str = Cookie(None)):
+async def add_like_image(image_id: int, session: AsyncSession = Depends(get_async_session),
+                         fastapiusersauth: str = Cookie(None)):
     status_code, data = check_auth(fastapiusersauth)
     if status_code == 401:
         return JSONResponse(status_code=status_code, content=data)
@@ -122,11 +145,12 @@ async def add_like_image(image_id: int, session: AsyncSession = Depends(get_asyn
     await session.execute(stmt)
     await session.commit()
 
-    return {"status": "success"}
+    return JSONResponse(status_code=204, content=None)
 
 
 @router.patch("/image/change_status/{image_id}")
-async def change_status_image(image_id: int, session: AsyncSession = Depends(get_async_session), fastapiusersauth: str = Cookie(None)):
+async def change_status_image(image_id: int, session: AsyncSession = Depends(get_async_session),
+                              fastapiusersauth: str = Cookie(None)):
     status_code, data = check_auth(fastapiusersauth)
     if status_code == 401:
         return JSONResponse(status_code=status_code, content=data)
@@ -141,7 +165,21 @@ async def change_status_image(image_id: int, session: AsyncSession = Depends(get
     await session.execute(stmt)
     await session.commit()
 
-    return JSONResponse(status_code=204)
+    return JSONResponse(status_code=204, content=None)
+
+
+@router.post("/image/add_favourite/{image_id}")
+async def add_favourite(image_id: int, session: AsyncSession = Depends(get_async_session),
+                              fastapiusersauth: str = Cookie(None)):
+    status_code, data = check_auth(fastapiusersauth)
+    if status_code == 401:
+        return JSONResponse(status_code=status_code, content=data)
+
+    stmt = insert(favourites).values(user_id=data['id'], id_file=image_id)
+    await session.execute(stmt)
+    await session.commit()
+
+    return JSONResponse(status_code=204, content=None)
 
 
 @router.post("/image")
@@ -149,7 +187,7 @@ async def add_file(new_file: FileCreate, session: AsyncSession = Depends(get_asy
     stmt = insert(file).values(**new_file.dict())
     await session.execute(stmt)
     await session.commit()
-    return {"status": "success"}
+    return JSONResponse(status_code=201, content=new_file.dict())
 
 
 

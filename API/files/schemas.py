@@ -21,6 +21,5 @@ class FileUpdate(BaseModel):
 
 
 class FavouritesCreate(BaseModel):
-    id: int
     id_file: int
     user_id: int
