@@ -4,7 +4,7 @@ from typing import Optional
 from email.message import EmailMessage
 
 from fastapi import Depends, Request
-from fastapi_users import BaseUserManager, IntegerIDMixin, schemas, models, exceptions
+from fastapi_users import BaseUserManager, IntegerIDMixin
 
 from API.auth.config import SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD
 from API.auth.database import User, get_user_db
@@ -35,16 +35,10 @@ def send_email_registration(user: User):
 
 
 class UserManager(IntegerIDMixin, BaseUserManager[User, int]):
-    # verification_token_secret = SECRET_VERIFICATION
 
     async def on_after_register(self, user: User, request: Optional[Request] = None):
-        send_email_registration()
-
-
-    # async def on_after_request_verify(
-    #     self, user: User, token: str, request: Optional[Request] = None
-    # ):
-    #     print(f"Verification requested for user {user.id}. Verification token: {token}")
+        pass
+        send_email_registration(user)
 
 
 async def get_user_manager(user_db=Depends(get_user_db)):

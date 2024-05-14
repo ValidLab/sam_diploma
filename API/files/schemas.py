@@ -12,11 +12,7 @@ class FileCreate(BaseModel):
 
 
 class FileUpdate(BaseModel):
-    # id: None
-    # path: None
-    # author: None
     public: Union[bool, None] = None
-    # created_at: None
     likes: Union[int, None] = None
 
 
