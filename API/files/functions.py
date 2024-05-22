@@ -10,6 +10,7 @@ from ikomia.dataprocess.workflow import Workflow
 
 
 def reformate_photo(path: str, input_box: List[str], prompt: str, anti_prompt: str):
+    print(input_box)
     wf = Workflow()
 
     inp = '['

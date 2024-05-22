@@ -30,8 +30,12 @@ async def post_file(filename: str, public: bool, session: AsyncSession = Depends
         return JSONResponse(status_code=status_code, content=data)
 
     created_at = datetime.now()
-    img_info = {'path': filename, 'author': data['nickname'], 'public': public, 'created_at': created_at, 'likes': 0}
-    await session.execute(img_info)
+    # img_info = {'path': filename, 'author': data['nickname'], 'public': public, 'created_at': created_at, 'likes': 0}
+    # await session.execute(img_info)
+    # await session.commit()
+
+    stmt = insert(file).values(path=filename, author=data['nickname'], public=public, created_at=created_at, likes=0)
+    await session.execute(stmt)
     await session.commit()
 
 
@@ -57,7 +61,7 @@ async def improve_file(uploaded_file: UploadFile, prompt: str, anti_prompt: str,
     final_destination = ''.join(destination.split('.')[:-1]) + '_updated.jpg'
     img.save(final_destination)
 
-    return FileResponse(final_destination)
+    return FileResponse(final_destination, filename=final_destination)
 
 
 @router.get("/images/favourite/")
@@ -79,7 +83,7 @@ async def get_private(session: AsyncSession = Depends(get_async_session), fastap
     if status_code == 401:
         return JSONResponse(status_code=status_code, content=data)
 
-    query = select(file).select_from(file).where((file.c.author == data['nickname']) & (file.c.public is False))
+    query = select(file).select_from(file).where((file.c.author == data['nickname']) & (file.c.public == False))
 
     result = await session.execute(query)
 
@@ -87,16 +91,16 @@ async def get_private(session: AsyncSession = Depends(get_async_session), fastap
 
 
 @router.get("/images")
-async def get_all(filter_by: str = 'latest', author: str = '', skip: int = 0, limit: int = 10,
+async def get_public(filter_by: str = 'latest', author: str = '', skip: int = 0, limit: int = 10,
                   session: AsyncSession = Depends(get_async_session), fastapiusersauth: str = Cookie(None)):
     status_code, data = check_auth(fastapiusersauth)
     if status_code == 401:
         return JSONResponse(status_code=status_code, content=data)
 
     if author:
-        query = select(file).where(file.c.author == author)
+        query = select(file).where((file.c.author == author) & (file.c.public == True))
     else:
-        query = select(file)
+        query = select(file).where(file.c.public == True)
 
     if filter_by == 'earliest':
         query = query.order_by(file.c.created_at)
@@ -120,7 +124,7 @@ async def get_image(image_id: int, session: AsyncSession = Depends(get_async_ses
     query = select(file).where(file.c.id == image_id)
 
     result = await session.execute(query)
-    return JSONResponse(status_code=200, content=result.mappings().one())
+    return result.mappings().one()
 
 
 @router.patch("/image/add_like/{image_id}")
@@ -151,7 +155,7 @@ async def change_status_image(image_id: int, session: AsyncSession = Depends(get
     query = select(file).where(file.c.id == image_id)
     result = await session.execute(query)
     stored_item_data = result.mappings().one()
-    if data['nickname'] != stored_item_data['nickname']:
+    if data['nickname'] != stored_item_data['author']:
         return JSONResponse(status_code=403, content={"detail": "It's not your image."})
 
     stmt = (update(file).where(file.c.id == image_id).values(public=not(stored_item_data['public'])))
@@ -175,16 +179,30 @@ async def add_favourite(image_id: int, session: AsyncSession = Depends(get_async
     return JSONResponse(status_code=204, content=None)
 
 
-@router.post("/image")
-async def add_file(new_file: FileCreate, session: AsyncSession = Depends(get_async_session)):
-    stmt = insert(file).values(**new_file.dict())
-    await session.execute(stmt)
-    await session.commit()
-    return JSONResponse(status_code=201, content=new_file.dict())
+# @router.post("/image")
+# async def add_file(new_file: FileCreate, session: AsyncSession = Depends(get_async_session)):
+#     stmt = insert(file).values(**new_file.dict())
+#     await session.execute(stmt)
+#     await session.commit()
+#     return JSONResponse(status_code=201, content=new_file.dict())
 
 
-# @router.post("/random")
-# async def improve_file(uploaded_file: UploadFile, prompt: str, anti_prompt: str, coordinates: List[str]):
-#     final_destination = 'media/cat_updated.jpg'
-#
-#     return FileResponse(final_destination, filename=final_destination)
+@router.post("/random")
+async def improve_file():
+    final_destination = 'media/Pyramid_updated.jpg'
+
+    return FileResponse(final_destination, filename=final_destination)
+
+
+@router.get("/get_image_file/{image_id}")
+async def get_file(image_id: int, session: AsyncSession = Depends(get_async_session), fastapiusersauth: str = Cookie(None)):
+    status_code, data = check_auth(fastapiusersauth)
+    if status_code == 401:
+        return JSONResponse(status_code=status_code, content=data)
+
+    query = select(file).where(file.c.id == image_id)
+
+    result = await session.execute(query)
+    result = result.mappings().one().get('path')
+
+    return FileResponse(result)
